@@ -19,7 +19,7 @@ $logged_in_user = elgg_get_logged_in_user_entity();
 	
 	
 	$uzta_dir = elgg_get_plugin_setting('file_takeout_uzta_dir');
-	$uzta_dir_output = elgg_get_plugin_setting('file_takeout_uzta_dir_output');
+	$python_dir = elgg_get_plugin_setting('file_takeout_python_dir');
 		
 		
 	
