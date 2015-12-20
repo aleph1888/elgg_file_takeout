@@ -21,6 +21,32 @@ echo elgg_view('input/select', array(
 	),
 	'value' => $vars['entity']->file_takeout_site_menu,
 ));
+
+
+echo '<p>';
+echo elgg_echo('Python run directory');
+echo elgg_view('input/text', array(
+	'name' => 'params[file_takeout_python_dir]',
+	'value' => $vars['entity']->file_takeout_python_dir,
+));
+echo '</p>';
+
+echo '<p>';
+echo elgg_echo('Uzta run directory');
+echo elgg_view('input/text', array(
+	'name' => 'params[file_takeout_uzta_dir]',
+	'value' => $vars['entity']->file_takeout_uzta_dir,
+));
+echo '</p>';
+
+echo '<p>';
+echo elgg_echo('Uzta output directory');
+echo elgg_view('input/text', array(
+	'name' => 'params[file_takeout_uzta_dir_output]',
+	'value' => $vars['entity']->file_takeout_uzta_dir_output,
+));
+echo '</p>';
+
 echo '</div>';
 
 ?>
