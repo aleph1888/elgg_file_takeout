@@ -10,6 +10,20 @@ $title = elgg_view_title("File Takeout");
 $guid_from_path = basename($_SERVER["REQUEST_URI"]);
 $logged_in_user = elgg_get_logged_in_user_entity();
 
+
+	$file_takeout_file_meta_remote_lorea = elgg_get_plugin_user_setting('file_takeout_file_meta_remote_lorea', $user_guid, 'file_takeout');
+	$file_takeout_file_meta_remote_lorea_url = elgg_get_plugin_user_setting('file_takeout_file_meta_remote_lorea_url', $user_guid, 'file_takeout');
+	$file_takeout_file_meta_remote_lorea_user = elgg_get_plugin_user_setting('file_takeout_file_meta_remote_lorea_user', $user_guid, 'file_takeout');
+	$file_takeout_file_meta_remote_lorea_pwd = elgg_get_plugin_user_setting('file_takeout_file_meta_remote_lorea_pwd', $user_guid, 'file_takeout');
+	$file_takeout_file_meta_remote_lorea_pending = elgg_get_plugin_user_setting('file_takeout_file_meta_remote_lorea_pending', $user_guid, 'file_takeout');
+	
+	
+	$uzta_dir = elgg_get_plugin_setting('file_takeout_uzta_dir');
+	$uzta_dir_output = elgg_get_plugin_setting('file_takeout_uzta_dir_output');
+		
+		
+	
+
 // 
 // Helper functions
 //
@@ -200,56 +214,90 @@ __HTML;
 
 // Create the ZIP archive and make it available for download
 if ($guid_from_path != 'file_takeout') {
-	$files = get_all_entities($guid_from_path, 'file');
-	$blogs = get_all_entities($guid_from_path, 'blog');
-	$pages = get_all_entities($guid_from_path, 'page_top');
-	$bookmarks = get_all_entities($guid_from_path, 'bookmarks');
-	if (count($files) > 0 || count($blogs) > 0 || count($pages) > 0 || count($bookmarks) > 0) {
-		$area .= '<h3>' . get_entity($guid_from_path)->name . '</h3>';
-		$area .= '<br><p>Zipping the following files...</p>';
-		$area .= '<ul>';
-		$archive_path = elgg_get_data_path() . $guid_from_path . '.zip';
-		if (file_exists($archive_path)) {
-			unlink($archive_path);
-		}
-		$zip = new ZipArchive;
-		$res = $zip->open($archive_path, ZipArchive::CREATE);
-		if ($res === TRUE) {
-			foreach ($files as $file) {
-				if (file_exists($file->getFilenameOnFilestore())) {
-					$area .= '<li style="font-family: Monaco, Consolas, monospace; font-size: 0.85em;">...file/files/' . sanitize_file_name($file->originalfilename) . '</li>';
-					$zip->addFile($file->getFilenameOnFilestore(), 'file/files/' . sanitize_file_name($file->originalfilename));
-				} else {
-					$area .= '<li>Could not find ' . $file->getFilenameOnFilestore() . '</li>';
+
+	if ( $file_takeout_file_meta_remote_lorea == "yes" ) {
+		//usage: uzta.py [-h] [-o OUTPUT] [-z] [-d ZIPOUT] [-j JOBS] [-t] username password website
+		
+		$download_name = sanitize_file_name($file_takeout_file_meta_remote_lorea_url);
+		$download_path = elgg_get_data_path() . 'file/files/' . $download_name;
+		
+		$params = " -o " . $download_path . " -z -d " . $download_path;
+		$params .= " " . $file_takeout_file_meta_remote_lorea_user . " " . $file_takeout_file_meta_remote_lorea_pwd;
+		
+		exec($python_dir . " " . $uzta_dir . " " . $parms); 
+		
+		$area = elgg_echo('> File is generating, you will find it on:') . " " . $file_takeout_file_meta_remote_lorea_url . ' -- <a href="' . $download_path . "/uzta.zip" . '">Download Archive</a></li>';
+		elgg_set_plugin_user_setting ('file_takeout_file_meta_remote_lorea_pending', $download_path . "/uzta.zip", $user_guid, 'file_takeout');
+		
+	}else {
+		$files = get_all_entities($guid_from_path, 'file');
+		$blogs = get_all_entities($guid_from_path, 'blog');
+		$pages = get_all_entities($guid_from_path, 'page_top');
+		$bookmarks = get_all_entities($guid_from_path, 'bookmarks');
+		if (count($files) > 0 || count($blogs) > 0 || count($pages) > 0 || count($bookmarks) > 0) {
+			$area .= '<h3>' . get_entity($guid_from_path)->name . '</h3>';
+			$area .= '<br><p>Zipping the following files...</p>';
+			$area .= '<ul>';
+			$archive_path = elgg_get_data_path() . $guid_from_path . '.zip';
+			if (file_exists($archive_path)) {
+				unlink($archive_path);
+			}
+			$zip = new ZipArchive;
+			$res = $zip->open($archive_path, ZipArchive::CREATE);
+			if ($res === TRUE) {
+				foreach ($files as $file) {
+					if (file_exists($file->getFilenameOnFilestore())) {
+						$area .= '<li style="font-family: Monaco, Consolas, monospace; font-size: 0.85em;">...file/files/' . sanitize_file_name($file->originalfilename) . '</li>';
+						$zip->addFile($file->getFilenameOnFilestore(), 'file/files/' . sanitize_file_name($file->originalfilename));
+					} else {
+						$area .= '<li>Could not find ' . $file->getFilenameOnFilestore() . '</li>';
+					}
 				}
+				$area .= create_files_from_entities($files, 'file', 'file', $guid_from_path, $zip, $file_takeout_tmp_files);
+				if (elgg_is_active_plugin('blog')) {
+					$area .= create_files_from_entities($blogs, 'blog', 'blog', $guid_from_path, $zip, $file_takeout_tmp_files);
+				}
+				if (elgg_is_active_plugin('pages')) {
+					$area .= create_files_from_entities($pages, 'pages', 'page_top', $guid_from_path, $zip, $file_takeout_tmp_files);
+				}
+				if (elgg_is_active_plugin('bookmarks')) {
+					$area .= create_files_from_entities($bookmarks, 'bookmarks', 'bookmarks', $guid_from_path, $zip, $file_takeout_tmp_files);
+				}
+				$zip->close();
+				// Clean up
+				foreach ($file_takeout_tmp_files as $tmp_file){
+					unlink($tmp_file);
+				}
+				$area .= '</ul>';
+				$area .= '<br><p style="color: green;">ZIP file created successfully.</p><p>Download this <a href="'.$site_url.'file_takeout_download/'.$guid_from_path.'">ZIP file</a> to your computer and extract the contents to any folder.</p>';
 			}
-			$area .= create_files_from_entities($files, 'file', 'file', $guid_from_path, $zip, $file_takeout_tmp_files);
-			if (elgg_is_active_plugin('blog')) {
-				$area .= create_files_from_entities($blogs, 'blog', 'blog', $guid_from_path, $zip, $file_takeout_tmp_files);
-			}
-			if (elgg_is_active_plugin('pages')) {
-				$area .= create_files_from_entities($pages, 'pages', 'page_top', $guid_from_path, $zip, $file_takeout_tmp_files);
-			}
-			if (elgg_is_active_plugin('bookmarks')) {
-				$area .= create_files_from_entities($bookmarks, 'bookmarks', 'bookmarks', $guid_from_path, $zip, $file_takeout_tmp_files);
-			}
-			$zip->close();
-			// Clean up
-			foreach ($file_takeout_tmp_files as $tmp_file){
-				unlink($tmp_file);
-			}
-			$area .= '</ul>';
-			$area .= '<br><p style="color: green;">ZIP file created successfully.</p><p>Download this <a href="'.$site_url.'file_takeout_download/'.$guid_from_path.'">ZIP file</a> to your computer and extract the contents to any folder.</p>';
+		} else {
+			$area .= '<br><p style="color: red;">No files to export.</p>';
 		}
-	} else {
-		$area .= '<br><p style="color: red;">No files to export.</p>';
 	}
+
+		
 	$area .= '<br><a href="'.$site_url.'file_takeout">&lt; Back to File Takeout</a>';
 } 
 
 // Display a listing of all groups that contain files
 else {
-	$area = '<br><p>This tool exports files from a group (which you own) into a ZIP archive. -- <a href="' . $site_url . 'settings/plugins">Configure Settings</a></p>';
+
+	$area = '<br><p>This tool exports files from a group (which you own) into a ZIP archive. May also backup remote Loreas, set it on: -- <a href="' . $site_url . 'settings/plugins/' . $logged_in_user->username . '/file_takeout">Configure Settings</a></p>';
+	
+	if ( $file_takeout_file_meta_remote_lorea == "yes" ) {
+		$area .= elgg_echo('> Remote Lorea:') . " " . $file_takeout_file_meta_remote_lorea_url . ' -- <a href="' . $_SERVER['REQUEST_URI'] . '/XXX'  . '">Order Archive</a></li>';
+		
+		if ( file_takeout_file_meta_remote_lorea_pending ) {
+			if (file_exists($archive_path)) {
+				$area .= ' <a href="' . file_takeout_file_meta_remote_lorea_pending . '">Download Archive</a></li>';
+			}			
+		}
+	}else{
+		$area .= elgg_echo('> Remote Lorea:') . " " . elgg_echo('-');
+	}
+	$area .= "<br><br>";
+	
 	$all_groups = elgg_get_entities(array("type" => "group", "limit" => ""));
 	$my_groups = 0;
 	$sort_array = array();
